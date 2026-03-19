@@ -1,0 +1,17 @@
+{
+  "firebase_url": "https://your-project.firebaseio.com",
+  "firebase_credentials": {},
+  "email": {
+    "enabled": false,
+    "sender": "your_email@gmail.com",
+    "password": "your_app_password",
+    "recipient": "doctor@hospital.com"
+  },
+  "twilio": {
+    "enabled": false,
+    "account_sid": "your_twilio_sid",
+    "auth_token": "your_twilio_token",
+    "from_number": "+1234567890",
+    "to_number": "+0987654321"
+  }
+}

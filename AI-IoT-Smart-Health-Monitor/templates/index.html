@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Smart Health Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <h1>🏥 AI Smart Health Monitor</h1>
+    <p>AI-Driven IoT Predictive Healthcare System</p>
+  </div>
+  <div class="header-right">
+    <span id="risk-badge" class="risk-badge normal">● NORMAL</span>
+    <span id="last-updated" class="updated">—</span>
+    <button onclick="simulate()" class="sim-btn">⚡ Simulate</button>
+  </div>
+</header>
+
+<!-- Vitals Cards -->
+<div class="vitals-grid">
+  <div class="vital-card red">
+    <div class="vital-icon">❤️</div>
+    <div class="vital-label">Heart Rate</div>
+    <div class="vital-value" id="hr">--</div>
+    <div class="vital-unit">BPM</div>
+    <div class="vital-bar-wrap"><div class="vital-bar" id="hr-bar"></div></div>
+  </div>
+  <div class="vital-card blue">
+    <div class="vital-icon">🫁</div>
+    <div class="vital-label">SpO2</div>
+    <div class="vital-value" id="spo2">--</div>
+    <div class="vital-unit">%</div>
+    <div class="vital-bar-wrap"><div class="vital-bar" id="spo2-bar"></div></div>
+  </div>
+  <div class="vital-card orange">
+    <div class="vital-icon">🌡️</div>
+    <div class="vital-label">Temperature</div>
+    <div class="vital-value" id="temp">--</div>
+    <div class="vital-unit">°C</div>
+    <div class="vital-bar-wrap"><div class="vital-bar" id="temp-bar"></div></div>
+  </div>
+  <div class="vital-card purple">
+    <div class="vital-icon">🧠</div>
+    <div class="vital-label">Risk Score</div>
+    <div class="vital-value" id="risk-score">--</div>
+    <div class="vital-unit">/ 100</div>
+    <div class="vital-bar-wrap"><div class="vital-bar" id="risk-bar"></div></div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+  <div class="chart-box">
+    <h3>❤️ Heart Rate History</h3>
+    <canvas id="hrChart" height="90"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>🫁 SpO2 History</h3>
+    <canvas id="spo2Chart" height="90"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>🌡️ Temperature History</h3>
+    <canvas id="tempChart" height="90"></canvas>
+  </div>
+</div>
+
+<!-- Alert Log -->
+<div class="alert-box">
+  <h3>🚨 Alert History</h3>
+  <div id="alert-log"><p style="color:#334155;">No alerts yet — system monitoring...</p></div>
+</div>
+
+<footer>AI-Driven IoT Smart Health Monitoring System &nbsp;|&nbsp; Sam Wesley S &nbsp;|&nbsp; Karunya Institute of Technology and Sciences</footer>
+
+<script>
+const makeChart = (id, label, color, min, max) => new Chart(
+  document.getElementById(id).getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label, data: [], borderColor: color,
+      backgroundColor: color + '22', borderWidth: 2, tension: 0.4,
+      fill: true, pointRadius: 2 }]},
+    options: { responsive: true, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color:'#475569', maxTicksLimit: 8 }, grid: { color:'#1e3a6e' } },
+        y: { ticks: { color:'#475569' }, grid: { color:'#1e3a6e' }, min, max }
+      }}
+  }
+);
+
+const hrChart   = makeChart('hrChart',   'BPM', '#ef4444', 40, 140);
+const spo2Chart = makeChart('spo2Chart', 'SpO2', '#3b82f6', 80, 100);
+const tempChart = makeChart('tempChart', '°C', '#f97316', 34, 42);
+
+const RISK_COLORS = {
+  'NORMAL':    ['#22c55e', 'normal'],
+  'WARNING':   ['#eab308', 'warning'],
+  'HIGH RISK': ['#f97316', 'highrisk'],
+  'CRITICAL':  ['#ef4444', 'critical'],
+};
+
+const alerts = [];
+
+function addToChart(chart, label, val, maxPts = 20) {
+  chart.data.labels.push(label);
+  chart.data.datasets[0].data.push(val);
+  if (chart.data.labels.length > maxPts) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+  chart.update();
+}
+
+function setBar(id, pct, color) {
+  const el = document.getElementById(id);
+  el.style.width = pct + '%';
+  el.style.background = color;
+}
+
+function updateUI(d) {
+  document.getElementById('hr').textContent   = d.heart_rate;
+  document.getElementById('spo2').textContent = d.spo2;
+  document.getElementById('temp').textContent = d.temperature;
+  document.getElementById('risk-score').textContent = Math.round(d.risk_score * 100);
+  document.getElementById('last-updated').textContent = 'Updated: ' + d.last_updated;
+
+  const [color, cls] = RISK_COLORS[d.risk_level] || ['#22c55e', 'normal'];
+  const badge = document.getElementById('risk-badge');
+  badge.textContent  = '● ' + d.risk_level;
+  badge.className    = 'risk-badge ' + cls;
+
+  setBar('hr-bar',   Math.min(100, (d.heart_rate - 40) / 100 * 100), '#ef4444');
+  setBar('spo2-bar', d.spo2, '#3b82f6');
+  setBar('temp-bar', Math.min(100, (d.temperature - 34) / 8 * 100), '#f97316');
+  setBar('risk-bar', Math.round(d.risk_score * 100), color);
+
+  const t = d.last_updated;
+  addToChart(hrChart,   t, d.heart_rate);
+  addToChart(spo2Chart, t, d.spo2);
+  addToChart(tempChart, t, d.temperature);
+
+  if (d.risk_level !== 'NORMAL') {
+    alerts.unshift(`[${t}] ${d.risk_level} — HR:${d.heart_rate} SpO2:${d.spo2}% Temp:${d.temperature}°C`);
+    if (alerts.length > 10) alerts.pop();
+    document.getElementById('alert-log').innerHTML = alerts
+      .map(a => `<div class="alert-item">${a}</div>`).join('');
+  }
+}
+
+function simulate() {
+  fetch('/simulate').then(r => r.json()).then(d => updateUI(d.data));
+}
+
+function poll() {
+  fetch('/status').then(r => r.json()).then(updateUI).catch(() => {});
+}
+
+setInterval(poll, 5000);
+poll();
+</script>
+</body>
+</html>
